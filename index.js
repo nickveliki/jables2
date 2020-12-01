@@ -223,7 +223,7 @@ const importTables = (path, secDatPath)=>new Promise((res, rej)=>{
                                                                 const [, iv] = definition.split("#");
                                                                 const piv = iv.includes(",")?Buffer.from(iv.split(",").map((item)=>parseInt(item))):Buffer.from(iv, "base64");
                                                                 const table = JSON.parse(crypto.createDecipheriv("aes-128-gcm", Buffer.from(key, "base64"), piv).update(data).toString());
-                                                                writeDefinition(table.Versions.map((item)=>updateObject(item, {path: definition.replace(oldpath, "").replace(".jdf", "").split("#")[0], indexKey: table.indexKey})))
+                                                                writeDefinition(table.Versions.map((item)=>updateObject(item, {path: definition.replace(oldpath, "").replace(".jdf", "").replace(/\\/g, "/").split("#")[0], indexKey: table.indexKey})))
                                                             }
                                                             finished++
                                                             if(finished==Definitions.length){
