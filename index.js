@@ -69,7 +69,7 @@ const getDB = ()=>new Promise((res, rej)=>{
                         if(!err){
                             const piv = iv.includes(",")?Buffer.from(iv.split(",").map((item)=>parseInt(item))):Buffer.from(iv, "base64");
                             const table = JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, piv).update(data).toString())
-                            db[path.replace(_basePath+pathreq.sep, "").replace(".jdf", "").split("#")[0]]={iv: piv, table}
+                            db[path.replace(_basePath+pathreq.sep, "").replace(".jdf", "").replace(/\\/g, "/").split("#")[0]]={iv: piv, table}
                         }else{
                             console.log(err)
                         }
