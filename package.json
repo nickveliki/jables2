@@ -1,0 +1,11 @@
+{
+  "name": "jables2",
+  "version": "2.0.0",
+  "description": "fast, reliable and easy data storage",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "nickveliki",
+  "license": "MIT"
+}
