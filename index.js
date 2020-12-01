@@ -83,31 +83,48 @@ const getDB = ()=>new Promise((res, rej)=>{
         }
     })
 })
-const writeDB = ()=>{
+const writeDB = ()=>new Promise((res)=>{
     if(toWrite){
         getSec().then(({key, iv})=>{
             const Definitions = []
-            Object.keys(db).forEach((item)=>{
-                const p = pathreq.join(_basePath, item);
-                Definitions.push(`${p}.jdf#${db[item].iv.toString("base64")}`);
-                if(!fs.existsSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)))){
-                    fs.mkdirSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)), {recursive:true})
-                }
-                fs.writeFile(p+".jdf", crypto.createCipheriv("aes-128-gcm", key, db[item].iv).update(JSON.stringify(db[item].table)), {mode:0o600}, (err)=>{
+            const keys = Object.keys(db)
+            if(keys.length){
+                let finished = 0;
+                keys.forEach((item)=>{
+                    const p = pathreq.join(_basePath, item);
+                    Definitions.push(`${p}.jdf#${db[item].iv.toString("base64")}`);
+                    if(!fs.existsSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)))){
+                        fs.mkdirSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)), {recursive:true})
+                    }
+                    fs.writeFile(p+".jdf", crypto.createCipheriv("aes-128-gcm", key, db[item].iv).update(JSON.stringify(db[item].table)), {mode:0o600}, (err)=>{
+                        if(err){
+                            fs.writeFileSync(pathreq.join(_basePath, "error.log"), JSON.stringify({time: new Date().toUTCString(), err}), {flag:"a"})
+                        }
+                        finished++
+                        if(finished==keys.length+1){
+                            res()
+                        }
+                    })
+                })
+                fs.writeFile(pathreq.join(_basePath, "definitions.jdf"), crypto.createCipheriv("aes-128-gcm", key, iv).update(JSON.stringify({Definitions})), (err)=>{
                     if(err){
                         fs.writeFileSync(pathreq.join(_basePath, "error.log"), JSON.stringify({time: new Date().toUTCString(), err}), {flag:"a"})
                     }
+                    finished++
+                    if(finished==keys.length+1){
+                        res()
+                    }
                 })
-            })
-            fs.writeFile(pathreq.join(_basePath, "definitions.jdf"), crypto.createCipheriv("aes-128-gcm", key, iv).update(JSON.stringify({Definitions})), (err)=>{
-                if(err){
-                    fs.writeFileSync(pathreq.join(_basePath, "error.log"), JSON.stringify({time: new Date().toUTCString(), err}), {flag:"a"})
-                }
-            })
-        })
+            }else{
+                res()
+            }
+            
+        }, res)
         toWrite=false;
+    }else{
+        res();
     }
-}
+})
 const searchArray = (searchkey, searchvalue, array)=>{
     if(array.length>0){
         let search = array.map((item)=>item);
@@ -256,5 +273,6 @@ module.exports={
     writeDefinition,
     deleteDefinition,
     getDefinitionProperty,
-    importTables
+    importTables,
+    writeDB
 }
