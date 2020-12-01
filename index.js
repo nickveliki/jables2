@@ -90,6 +90,9 @@ const writeDB = ()=>{
             Object.keys(db).forEach((item)=>{
                 const p = pathreq.join(_basePath, item);
                 Definitions.push(`${p}.jdf#${db[item].iv.toString("base64")}`);
+                if(!fs.existsSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)))){
+                    fs.mkdirSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)), {recursive:true})
+                }
                 fs.writeFile(p+".jdf", crypto.createCipheriv("aes-128-gcm", key, db[item].iv).update(JSON.stringify(db[item].table)), {mode:0o600}, (err)=>{
                     if(err){
                         fs.writeFileSync(pathreq.join(_basePath, "error.log"), JSON.stringify({time: new Date().toUTCString(), err}), {flag:"a"})
