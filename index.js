@@ -366,6 +366,13 @@ const importTables = (path, secDatPath)=>new Promise((res, rej)=>{
         }
     })
 })
+const exists = (definition)=>{
+    const something = getDefinitionSync(definition);
+    if (!sometihng||something.Versions){
+        return false
+    }
+    return true
+}
 module.exports={
     setup,
     getDefinition,
@@ -374,5 +381,6 @@ module.exports={
     deleteDefinition,
     getDefinitionProperty,
     importTables,
-    writeDB
+    writeDB,
+    exists
 }
