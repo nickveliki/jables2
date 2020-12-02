@@ -277,7 +277,7 @@ const deleteDefinition = (definition)=>{
     if(Array.isArray(definition)){
         definition.forEach(deleteDefinition)
     }else{
-        if(definition.path&&db[definition.path]&&definition[db[definition.path].table.indexKey]){
+        if(definition.path&&db[definition.path]&&definition[db[definition.path].table.indexKey]!=undefined){
             const {i, before} = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], db[definition.path].table.Versions);
             const delpar = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], del[definition.path])
             if(before==undefined){
