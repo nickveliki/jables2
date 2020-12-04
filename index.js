@@ -4,13 +4,18 @@ const crypto = require("crypto");
 const {totalmem} = require("os");
 let _basePath;
 let _secdatpath;
-let _memoryQuota
+let _memoryQuota;
+let _logfile;
 let toWrite = false;
 const db = {}
 const del = {};
+const log = (text)=>{
+    fs.writeFileSync(pathreq.join(_basePath, _logfile), new Date().toUTCString()+": "+(typeof(text)=="object"?JSON.stringify(text):text)+"\n", {flag:"a", mode:0o600})
+}
 const QuotaReached = ()=>_memoryQuota<=1?process.memoryUsage().rss/totalmem()>_memoryQuota:process.memoryUsage().rss>_memoryQuota*Math.pow(2, 20);
-const setup = (rel, secdatpath, writeinterval=60, memoryQuota=0.2)=>new Promise((res, rej)=>{
+const setup = (rel, secdatpath, writeinterval=60, memoryQuota=0.2, logfile="j2.log")=>new Promise((res, rej)=>{
     _secdatpath=secdatpath;
+    _logfile = logfile;
     _basePath=pathreq.join(pathreq.resolve("./"), rel)
     _memoryQuota=memoryQuota;                
     fs.access(secdatpath, fs.constants.F_O|fs.constants.R_OK, (err)=>{
@@ -28,6 +33,8 @@ const setup = (rel, secdatpath, writeinterval=60, memoryQuota=0.2)=>new Promise(
                             fs.writeFile(pathreq.join(_basePath, "definitions.jdf"), crypto.createCipheriv("aes-128-gcm", key, iv).update(JSON.stringify({Definitions:[]})), (err)=>{
                                 if(err){
                                     rej({error: 500, message: err});
+                                }else{
+                                    res()
                                 }
                             })
                         }
@@ -41,7 +48,8 @@ const setup = (rel, secdatpath, writeinterval=60, memoryQuota=0.2)=>new Promise(
             getDB().then(()=>{
                 setInterval(()=>{
                     writeDB()
-                }, writeinterval*1000)
+                }, writeinterval*1000);
+                res()
             }, rej)
         }        
     })
@@ -59,7 +67,7 @@ const getSec = ()=>new Promise((res, rej)=>{
 const getDB = ()=>new Promise((res, rej)=>{
     fs.readFile(pathreq.join(_basePath, "definitions.jdf"), (err, data)=>{
         if(err){
-            console.log(err)
+            log(err)
             res()
         }else{
             getSec().then(({key, iv})=>{
@@ -88,7 +96,7 @@ const getDB = ()=>new Promise((res, rej)=>{
                             }
                             db[path.replace(_basePath+pathreq.sep, "").replace(".jdf", "").replace(/\\/g, "/").split("#")[0]]={iv: piv, table, quotad}
                         }else{
-                            console.log(err)
+                            log(err)
                         }
                         finished++;
                         if(finished==Definitions.length){
@@ -101,7 +109,6 @@ const getDB = ()=>new Promise((res, rej)=>{
     })
 })
 const writeDB = ()=>new Promise((res)=>{
-    console.log(process.memoryUsage().rss/Math.pow(2, 20), process.memoryUsage().heapUsed/Math.pow(2, 20), QuotaReached())
     if(toWrite){
         getSec().then(({key, iv})=>{
             const Definitions = []
@@ -213,7 +220,6 @@ const getDefinition = (definition)=>new Promise((res, rej)=>{
     if(sync){
         if(sync.indexKey){
             if(db[definition].quotad){
-                console.log(definition +" is under quota")
                 getSec().then(({key})=>{
                     fs.readFile(pathreq.join(_basePath, definition+".jdf"), (err, data)=>{
                         if(err){
@@ -335,7 +341,7 @@ const importTables = (path, secDatPath)=>new Promise((res, rej)=>{
                                                     Definitions.forEach((definition)=>{
                                                         fs.readFile(pathreq.join(path, definition.split("#")[0].replace(oldpath, "")), (err, data)=>{
                                                             if(err){
-                                                                console.log(err)
+                                                                log(err)
                                                             }else{
                                                                 const [, iv] = definition.split("#");
                                                                 const piv = iv.includes(",")?Buffer.from(iv.split(",").map((item)=>parseInt(item))):Buffer.from(iv, "base64");
