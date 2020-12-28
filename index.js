@@ -125,6 +125,7 @@ const writeDB = ()=>new Promise((res)=>{
                         const table = {indexKey: db[item].table.indexKey, Versions: []}
                         if(err){
                             fs.writeFileSync(pathreq.join(_basePath, "error.log"), JSON.stringify({time: new Date().toUTCString(), err}), {flag:"a"})
+                            table.Versions=db[item].table.Versions;
                         }else{
                             const searchKey = db[item].table.indexKey;
                             const fromFile = JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, db[item].iv).update(data)).Versions.map((it)=>{
@@ -133,7 +134,7 @@ const writeDB = ()=>new Promise((res)=>{
                                 if(before!=undefined){
                                     return it
                                 }else{
-                                    return updateObject(it, db[item].table.Versions.splice(i, 1))
+                                    return updateObject(it, db[item].table.Versions.splice(i, 1)[0])
                                 }
                             })
                             table.Versions=[...fromFile, ...db[item].table.Versions].filter((it)=>{
@@ -274,6 +275,7 @@ const writeDefinition = (definition)=>{
                 }
             }else if(definition.indexKey&&definition[definition.indexKey]!=undefined){
                 db[definition.path]={iv:crypto.randomBytes(16), table:{indexKey: definition.indexKey, Versions: [updateObject(definition, {path: undefined, indexKey: undefined})]}}
+                console.log(db)
                 toWrite=true;
             }
         }

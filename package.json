@@ -1,6 +1,6 @@
 {
   "name": "jables2",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "fast, reliable and easy data storage",
   "main": "index.js",
   "scripts": {
