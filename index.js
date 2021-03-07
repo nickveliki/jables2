@@ -297,7 +297,7 @@ const deleteDefinition = (definition)=>{
                     toWrite=true
                 }    
             }else if(before==undefined){
-                del[definition.path] = [db.definition.path].table.Versions.splice(i, 1);
+                del[definition.path] = [db[definition.path].table.Versions.splice(i, 1)];
                 toWrite=true
             }
             
