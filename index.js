@@ -94,7 +94,7 @@ const getDB = ()=>new Promise((res, rej)=>{
                                     return rs;
                                 });
                             }
-                            db[path.replace(_basePath+pathreq.sep, "").replace(".jdf", "").replace(/\\/g, "/").split("#")[0]]={iv: piv, table, quotad}
+                            db[path.replace(_basePath+pathreq.sep, "").replace(".jdf", "").split("#")[0]]={iv: piv, table, quotad}
                         }else{
                             log(err)
                         }
@@ -109,6 +109,7 @@ const getDB = ()=>new Promise((res, rej)=>{
     })
 })
 const writeDB = ()=>new Promise((res)=>{
+    //console.log(toWrite)
     if(toWrite){
         getSec().then(({key, iv})=>{
             const Definitions = []
@@ -117,9 +118,10 @@ const writeDB = ()=>new Promise((res)=>{
                 let finished = 0;
                 keys.forEach((item)=>{
                     const p = pathreq.join(_basePath, item);
+                    //console.log(p)
                     Definitions.push(`${p}.jdf#${db[item].iv.toString("base64")}`);
-                    if(!fs.existsSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)))){
-                        fs.mkdirSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)), {recursive:true})
+                    if(!fs.existsSync(pathreq.join(_basePath, ...item.split(pathreq.sep).splice(0, item.split(pathreq.sep).length-1)))){
+                        fs.mkdirSync(pathreq.join(_basePath, ...item.split(pathreq.sep).splice(0, item.split(pathreq.sep).length-1)), {recursive:true})
                     }
                     fs.readFile(p+".jdf", (err, data)=>{
                         const table = {indexKey: db[item].table.indexKey, Versions: []}
@@ -207,6 +209,7 @@ const searchArray = (searchkey, searchvalue, array)=>{
     return {before: true, i: 0}
 }
 const getDefinitionSync = (definition)=>{
+    //console.log(db)
     if(typeof(definition)=="string"&&db[definition]){
         return db[definition].table;
     }else if (definition.path&&db[definition.path]&&definition[db[definition.path].table.indexKey]!=undefined){
@@ -281,6 +284,7 @@ const updateObject = function(){
     return res;
 }
 const writeDefinition = (definition)=>{
+    //console.log(definition)
     if(Array.isArray(definition)){
         definition.forEach(writeDefinition)
     }else{
@@ -293,13 +297,14 @@ const writeDefinition = (definition)=>{
                 }
             }else if(definition.indexKey&&definition[definition.indexKey]!=undefined){
                 db[definition.path]={iv:crypto.randomBytes(16), table:{indexKey: definition.indexKey, Versions: [updateObject(definition, {path: undefined, indexKey: undefined})]}}
-                console.log(db)
+                //console.log(db)
                 toWrite=true;
             }
         }
     }
 }
 const deleteDefinition = (definition)=>{
+    //console.log(definition)
     if(Array.isArray(definition)){
         definition.forEach(deleteDefinition)
     }else{
@@ -318,7 +323,6 @@ const deleteDefinition = (definition)=>{
                 del[definition.path] = [db[definition.path].table.Versions.splice(i, 1)];
                 toWrite=true
             }
-            
         }
     }
 }
@@ -372,7 +376,7 @@ const importTables = (path, secDatPath)=>new Promise((res, rej)=>{
                                                                 const [, iv] = definition.split("#");
                                                                 const piv = iv.includes(",")?Buffer.from(iv.split(",").map((item)=>parseInt(item))):Buffer.from(iv, "base64");
                                                                 const table = JSON.parse(crypto.createDecipheriv("aes-128-gcm", Buffer.from(key, "base64"), piv).update(data).toString());
-                                                                writeDefinition(table.Versions.map((item)=>updateObject(item, {path: definition.replace(oldpath, "").replace(".jdf", "").replace(/\\/g, "/").split("#")[0], indexKey: table.indexKey})))
+                                                                writeDefinition(table.Versions.map((item)=>updateObject(item, {path: definition.replace(oldpath, "").replace(".jdf", "").replace(/[\\\/]/g, pathreq.sep).split("#")[0], indexKey: table.indexKey})))
                                                             }
                                                             finished++
                                                             if(finished==Definitions.length){
