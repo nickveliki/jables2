@@ -217,41 +217,59 @@ const getDefinitionSync = (definition)=>{
     }
 }
 const getDefinition = (definition)=>new Promise((res, rej)=>{
-    const sync = getDefinitionSync(definition)
-    if(sync){
-        if(sync.indexKey){
-            if(db[definition].quotad){
-                getSec().then(({key})=>{
-                    fs.readFile(pathreq.join(_basePath, definition+".jdf"), (err, data)=>{
-                        if(err){
-                            res(sync)
-                        }else{
-                            res(JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, db[definition].iv).update(data).toString()))
-                        }
+    if(Array.isArray(definition)){
+        const results = [];
+        definition.forEach((def, ind)=>{
+            getDefinition(def).then((result)=>{
+                results.push({result, ind})
+                if(results.length==definition.length){
+                    res(results.sort((a, b)=>a.ind-b.ind).map(({result, error})=>result||error))
+                }
+            }, (error)=>{
+                results.push({error, ind});
+                if(results.length==definition.length){
+                    res(results.sort((a, b)=>a.ind-b.ind).map(({result, error})=>result||error))
+                }
+            })
+        })
+    }else{
+        const sync = getDefinitionSync(definition)
+        if(sync){
+            if(sync.indexKey){
+                if(db[definition].quotad){
+                    getSec().then(({key})=>{
+                        fs.readFile(pathreq.join(_basePath, definition+".jdf"), (err, data)=>{
+                            if(err){
+                                res(sync)
+                            }else{
+                                res(JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, db[definition].iv).update(data).toString()))
+                            }
+                        })
                     })
-                })
+                }else{
+                    res(sync)
+                }
             }else{
-                res(sync)
+                if(Object.keys(sync).length==1){
+                    getDefinition(definition.path).then(({Versions})=>{
+                        const {i, before} = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], Versions);
+                        const ibefore = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], db[definition.path].table.Versions);
+                        if(before==undefined){
+                            db[definition.path].table.Versions.splice(ibefore.i, 1, Versions[i])
+                            res(Versions[i])
+                        }else{
+                            rej({error: 404})
+                        }
+                    }, rej)
+                }else{
+                    res(sync)
+                }
             }
         }else{
-            if(Object.keys(sync).length==1){
-                getDefinition(definition.path).then(({Versions})=>{
-                    const {i, before} = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], Versions);
-                    const ibefore = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], db[definition.path].table.Versions);
-                    if(before==undefined){
-                        db[definition.path].table.Versions.splice(ibefore.i, 1, Versions[i])
-                        res(Versions[i])
-                    }else{
-                        rej({error: 404})
-                    }
-                }, rej)
-            }else{
-                res(sync)
-            }
+            rej({error: 404, message:"not found"})
         }
-    }else{
-        rej({error: 404, message:"not found"})
     }
+    
 })
 const updateObject = function(){
     const res = {};
