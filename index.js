@@ -418,5 +418,6 @@ module.exports={
     getDefinitionProperty,
     importTables,
     writeDB,
-    exists
+    exists,
+    searchArray
 }
