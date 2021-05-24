@@ -94,7 +94,7 @@ const getDB = ()=>new Promise((res, rej)=>{
                                     return rs;
                                 });
                             }
-                            db[path.replace(_basePath+pathreq.sep, "").replace(".jdf", "").split("#")[0]]={iv: piv, table, quotad}
+                            db[path.replace(new RegExp(_basePath+pathreq.sep+"?"), "").replace(".jdf", "").split("#")[0]]={iv: piv, table, quotad}
                         }else{
                             log(err)
                         }
