@@ -77,8 +77,9 @@ const getDB = ()=>new Promise((res, rej)=>{
                     res()
                 }
                 Definitions.forEach((definition)=>{
+                    //console.log(definition)
                     const [path, iv] = definition.split("#");
-                    fs.readFile(path, (err, data)=>{
+                    fs.readFile(pathreq.join(_basePath, path), (err, data)=>{
                         if(!err){
                             const piv = iv.includes(",")?Buffer.from(iv.split(",").map((item)=>parseInt(item))):Buffer.from(iv, "base64");
                             const {indexKey, Versions} = JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, piv).update(data).toString());
@@ -94,12 +95,13 @@ const getDB = ()=>new Promise((res, rej)=>{
                                     return rs;
                                 });
                             }
-                            db[path.replace(new RegExp(_basePath+pathreq.sep+"?"), "").replace(".jdf", "")]={iv: piv, table, quotad}
+                            db[path.replace(".jdf", "")]={iv: piv, table, quotad}
                         }else{
                             log(err)
                         }
                         finished++;
                         if(finished==Definitions.length){
+                            console.log(db)
                             res();
                         }
                     })
@@ -109,7 +111,6 @@ const getDB = ()=>new Promise((res, rej)=>{
     })
 })
 const writeDB = ()=>new Promise((res)=>{
-    //console.log(toWrite)
     if(toWrite){
         getSec().then(({key, iv})=>{
             const Definitions = []
@@ -118,10 +119,9 @@ const writeDB = ()=>new Promise((res)=>{
                 let finished = 0;
                 keys.forEach((item)=>{
                     const p = pathreq.join(_basePath, item);
-                    //console.log(p)
-                    Definitions.push(`${p}.jdf#${db[item].iv.toString("base64")}`);
-                    if(!fs.existsSync(pathreq.join(_basePath, ...item.split(pathreq.sep).splice(0, item.split(pathreq.sep).length-1)))){
-                        fs.mkdirSync(pathreq.join(_basePath, ...item.split(pathreq.sep).splice(0, item.split(pathreq.sep).length-1)), {recursive:true})
+                    Definitions.push(`${item}.jdf#${db[item].iv.toString("base64")}`);
+                    if(!fs.existsSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)))){
+                        fs.mkdirSync(pathreq.join(_basePath, ...item.split("/").splice(0, item.split("/").length-1)), {recursive:true})
                     }
                     fs.readFile(p+".jdf", (err, data)=>{
                         const table = {indexKey: db[item].table.indexKey, Versions: []}
@@ -209,7 +209,6 @@ const searchArray = (searchkey, searchvalue, array)=>{
     return {before: true, i: 0}
 }
 const getDefinitionSync = (definition)=>{
-    //console.log(db)
     if(typeof(definition)=="string"&&db[definition]){
         return db[definition].table;
     }else if (definition.path&&db[definition.path]&&definition[db[definition.path].table.indexKey]!=undefined){
@@ -220,59 +219,41 @@ const getDefinitionSync = (definition)=>{
     }
 }
 const getDefinition = (definition)=>new Promise((res, rej)=>{
-    if(Array.isArray(definition)){
-        const results = [];
-        definition.forEach((def, ind)=>{
-            getDefinition(def).then((result)=>{
-                results.push({result, ind})
-                if(results.length==definition.length){
-                    res(results.sort((a, b)=>a.ind-b.ind).map(({result, error})=>result||error))
-                }
-            }, (error)=>{
-                results.push({error, ind});
-                if(results.length==definition.length){
-                    res(results.sort((a, b)=>a.ind-b.ind).map(({result, error})=>result||error))
-                }
-            })
-        })
-    }else{
-        const sync = getDefinitionSync(definition)
-        if(sync){
-            if(sync.indexKey){
-                if(db[definition].quotad){
-                    getSec().then(({key})=>{
-                        fs.readFile(pathreq.join(_basePath, definition+".jdf"), (err, data)=>{
-                            if(err){
-                                res(sync)
-                            }else{
-                                res(JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, db[definition].iv).update(data).toString()))
-                            }
-                        })
-                    })
-                }else{
-                    res(sync)
-                }
-            }else{
-                if(Object.keys(sync).length==1){
-                    getDefinition(definition.path).then(({Versions})=>{
-                        const {i, before} = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], Versions);
-                        const ibefore = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], db[definition.path].table.Versions);
-                        if(before==undefined){
-                            db[definition.path].table.Versions.splice(ibefore.i, 1, Versions[i])
-                            res(Versions[i])
+    const sync = getDefinitionSync(definition)
+    if(sync){
+        if(sync.indexKey){
+            if(db[definition].quotad){
+                getSec().then(({key})=>{
+                    fs.readFile(pathreq.join(_basePath, definition+".jdf"), (err, data)=>{
+                        if(err){
+                            res(sync)
                         }else{
-                            rej({error: 404})
+                            res(JSON.parse(crypto.createDecipheriv("aes-128-gcm", key, db[definition].iv).update(data).toString()))
                         }
-                    }, rej)
-                }else{
-                    res(sync)
-                }
+                    })
+                })
+            }else{
+                res(sync)
             }
         }else{
-            rej({error: 404, message:"not found"})
+            if(Object.keys(sync).length==1){
+                getDefinition(definition.path).then(({Versions})=>{
+                    const {i, before} = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], Versions);
+                    const ibefore = searchArray(Object.keys(sync)[0], sync[Object.keys(sync)[0]], db[definition.path].table.Versions);
+                    if(before==undefined){
+                        db[definition.path].table.Versions.splice(ibefore.i, 1, Versions[i])
+                        res(Versions[i])
+                    }else{
+                        rej({error: 404})
+                    }
+                }, rej)
+            }else{
+                res(sync)
+            }
         }
+    }else{
+        rej({error: 404, message:"not found"})
     }
-    
 })
 const updateObject = function(){
     const res = {};
@@ -284,7 +265,6 @@ const updateObject = function(){
     return res;
 }
 const writeDefinition = (definition)=>{
-    //console.log(definition)
     if(Array.isArray(definition)){
         definition.forEach(writeDefinition)
     }else{
@@ -297,30 +277,23 @@ const writeDefinition = (definition)=>{
                 }
             }else if(definition.indexKey&&definition[definition.indexKey]!=undefined){
                 db[definition.path]={iv:crypto.randomBytes(16), table:{indexKey: definition.indexKey, Versions: [updateObject(definition, {path: undefined, indexKey: undefined})]}}
-                //console.log(db)
                 toWrite=true;
             }
         }
     }
 }
 const deleteDefinition = (definition)=>{
-    //console.log(definition)
     if(Array.isArray(definition)){
         definition.forEach(deleteDefinition)
     }else{
         if(definition.path&&db[definition.path]&&definition[db[definition.path].table.indexKey]!=undefined){
             const {i, before} = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], db[definition.path].table.Versions);
-            if(del[definition.path]){
-                const delpar = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], del[definition.path])
-                    if(before==undefined){
-                    const delitem = db[definition.path].table.Versions.splice(i, 1);
-                    const tdel = {};
-                    tdel[db[definition.path].table.indexKey] = delitem[db[definition.path].table.indexKey];
-                    del[definition.path].splice(delpar.before?delpar.i:delpar.i+1, 0, tdel)
-                    toWrite=true
-                }    
-            }else if(before==undefined){
-                del[definition.path] = [db[definition.path].table.Versions.splice(i, 1)];
+            const delpar = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], del[definition.path])
+            if(before==undefined){
+                const delitem = db[definition.path].table.Versions.splice(i, 1);
+                const tdel = {};
+                tdel[db[definition.path].table.indexKey] = delitem[db[definition.path].table.indexKey];
+                del[definition.path].splice(delpar.before?delpar.i:delpar.i+1, 0, tdel)
                 toWrite=true
             }
         }
@@ -339,7 +312,11 @@ const getDefinitionProperty = (definition, property)=>new Promise((res, rej)=>{
         }, rej) 
     }
 })
+/**
+ * @deprecated Since version 2.1.2. Will be deleted in version 2.3.0. There will be no need for replacement
+ */
 const importTables = (path, secDatPath)=>new Promise((res, rej)=>{
+    console.warn("jables2.importTables is a function to import tables from older jables versions (<2.1.1). Those are still good and all, but this function won't be around at 2.3.0")
     fs.stat(path, (err, stat)=>{
         if(err){
             rej({error: 500, message: err})
@@ -376,7 +353,7 @@ const importTables = (path, secDatPath)=>new Promise((res, rej)=>{
                                                                 const [, iv] = definition.split("#");
                                                                 const piv = iv.includes(",")?Buffer.from(iv.split(",").map((item)=>parseInt(item))):Buffer.from(iv, "base64");
                                                                 const table = JSON.parse(crypto.createDecipheriv("aes-128-gcm", Buffer.from(key, "base64"), piv).update(data).toString());
-                                                                writeDefinition(table.Versions.map((item)=>updateObject(item, {path: definition.replace(oldpath, "").replace(".jdf", "").replace(/[\\\/]/g, pathreq.sep).split("#")[0], indexKey: table.indexKey})))
+                                                                writeDefinition(table.Versions.map((item)=>updateObject(item, {path: definition.replace(oldpath, "").replace(".jdf", "").replace(/\\/g, "/").split("#")[0], indexKey: table.indexKey})))
                                                             }
                                                             finished++
                                                             if(finished==Definitions.length){
@@ -418,6 +395,5 @@ module.exports={
     getDefinitionProperty,
     importTables,
     writeDB,
-    exists,
-    searchArray
+    exists
 }
