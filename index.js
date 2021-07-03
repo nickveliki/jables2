@@ -101,7 +101,6 @@ const getDB = ()=>new Promise((res, rej)=>{
                         }
                         finished++;
                         if(finished==Definitions.length){
-                            console.log(db)
                             res();
                         }
                     })
