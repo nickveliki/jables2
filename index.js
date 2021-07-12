@@ -287,12 +287,16 @@ const deleteDefinition = (definition)=>{
     }else{
         if(definition.path&&db[definition.path]&&definition[db[definition.path].table.indexKey]!=undefined){
             const {i, before} = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], db[definition.path].table.Versions);
-            const delpar = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], del[definition.path])
+            const delpar = searchArray(db[definition.path].table.indexKey, definition[db[definition.path].table.indexKey], del[definition.path]||[])
             if(before==undefined){
-                const delitem = db[definition.path].table.Versions.splice(i, 1);
+                const delitem = db[definition.path].table.Versions.splice(i, 1)[0];
                 const tdel = {};
                 tdel[db[definition.path].table.indexKey] = delitem[db[definition.path].table.indexKey];
-                del[definition.path].splice(delpar.before?delpar.i:delpar.i+1, 0, tdel)
+                if(del[definition.path]){
+                    del[definition.path].splice(delpar.before?delpar.i:delpar.i+1, 0, tdel)
+                }else{
+                    del[definition.path] = [tdel]
+                }
                 toWrite=true
             }
         }
